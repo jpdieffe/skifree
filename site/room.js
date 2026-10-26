@@ -1,5 +1,5 @@
 import {PROTOCOL,newCode,parseCode,validInput,validState} from './protocol.js';
-const PREFIX='skifree-chain-v1-';
+const PREFIX='skifree-chain-v2-';
 const advice=()=>/Android/i.test(navigator.userAgent)?'Allow Nearby devices / Local network for your browser in Android Settings, then retry.':'Allow local-network access if asked. Check Wi-Fi isolation or use the TURN option in Connection help.';
 const messageFor=e=>({'peer-unavailable':'That room is not hosted. Check the code and ask your friend to keep the game open.','network':'The room service is unreachable. Check your connection and retry.','server-error':'The room service is unavailable. Try again shortly.','browser-incompatible':'This browser does not support WebRTC. Use current Chrome or Safari.','webrtc':`The direct connection failed. ${advice()}`})[e?.type]||e?.message||String(e);
 

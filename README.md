@@ -11,6 +11,8 @@ This is a **browser adaptation**, with new simulation and procedural slopes, usi
 - Phone: drag the large ski pad left/right to steer, up to brake, down to tuck. Separate Brake, Tuck, and Jump buttons support simultaneous touches. Portrait and landscape layouts both work.
 - Keyboard: left/right or A/D steer; up or W brake; down or S tuck; Space jumps. Shift also tucks.
 - Stretch the chain to pull and bounce toward each other. Sweep it through trees, rocks, skiers, snowboarders, dogs, and the yeti. Character hits produce bloody particle explosions and snow splatters; scenery shatters. Blood and sound can be toggled in the menu.
+- Trees and large pines require a chain impact speed of 150 world units/second; normal downhill speed is 118 and tucking reaches 185. Speed is measured at the struck chain segment, perpendicular to the chain, so a fast swing can also cut a tree. Slow tree hits stop the pair.
+- Metal poles are indestructible. Hitting one with the chain or either skier stops the pair, even at full speed or while jumping. Steer sideways around the obstacle to resume. Pole hits give no points.
 - Both skiers stay in the camera’s view. Watch the tension meter, chain hits, and shared score. Nearby hits earn combo multipliers.
 - The yeti pursues the pair at 2,000 meters. Kill it with the chain to win, then choose another run or continue in endless mode.
 - Keep both game tabs visible. Switching away or disconnecting pauses the run. A disconnected guest can reconnect to the same host and resume.
