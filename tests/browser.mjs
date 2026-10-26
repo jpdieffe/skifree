@@ -1,0 +1,20 @@
+import {chromium,devices} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {createServer} from '../scripts/serve.mjs';
+await mkdir('test-results',{recursive:true});
+const server=process.env.SKIFREE_URL?null:createServer(4195),base=process.env.SKIFREE_URL||'http://127.0.0.1:4195/',browser=await chromium.launch({channel:'chrome',headless:true});
+const errors=[];
+try{
+ const desktop=await browser.newPage({viewport:{width:1280,height:900}});desktop.on('pageerror',e=>errors.push(e.message));await desktop.goto(base+'?debug');await desktop.waitForFunction(()=>!document.getElementById('practice').disabled);await desktop.screenshot({path:'test-results/lobby-desktop.png',fullPage:true});
+ for(const viewport of [{width:393,height:852},{width:844,height:390}]){
+  const context=await browser.newContext({...devices['Pixel 7'],viewport,deviceScaleFactor:1});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'?debug');await page.locator('#practice').click();await page.waitForFunction(()=>window.ski?.state?.time>1);
+  assert.ok(await page.locator('#controls').isVisible());assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  const before=await page.evaluate(()=>ski.world.players[0].x),rect=await page.locator('#pad').boundingBox();const session=await context.newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:rect.x+rect.width-12,y:rect.y+rect.height/2,id:0}]});await page.waitForTimeout(900);assert.ok(await page.evaluate(()=>ski.input().x>.8));assert.ok(await page.evaluate(()=>ski.world.players[0].x)>before+15);
+  const jump=await page.locator('[data-action="jump"]').boundingBox();await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:rect.x+rect.width-12,y:rect.y+rect.height/2,id:0},{x:jump.x+jump.width/2,y:jump.y+jump.height/2,id:1}]});await page.waitForTimeout(150);assert.ok(await page.evaluate(()=>ski.world.players[0].jump>0));
+  await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});assert.equal(await page.evaluate(()=>ski.input().x),0);assert.equal(await page.evaluate(()=>ski.input().jump),false);
+  await page.screenshot({path:`test-results/phone-${viewport.width}.png`});await context.close();
+ }
+ assert.deepEqual(errors,[]);console.log('PASS: desktop lobby, portrait and landscape phone layout, real multi-touch steering + jump, input release, no JavaScript errors.');
+}finally{await browser.close();server?.close();}
