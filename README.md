@@ -2,11 +2,22 @@
 
 [Play on GitHub Pages](https://jpdieffe.github.io/skifree/)
 
-Two visible skiers share a downhill run, connected by an elastic, lethal chain. Host a two-character room, share its invitation, and your friend joins as the blue skier. The run begins when both players connect. You can also practice with a bot partner.
+Two visible skiers share a downhill run, connected by an elastic, lethal chain. Host a two-character room, share its invitation, and your friend joins as the blue skier. The run begins when both players connect. You can also practice with a bot partner, or choose **Solo wrecking ball** to ski alone with a giant chained metal ball. Solo needs no room or connection to another player.
 
 This is a **browser adaptation**, with new simulation and procedural slopes, using the original SkiFree artwork extracted from the supplied Windows game. It does not execute or emulate the original EXE. The supplied archive is preserved unchanged at `assets/ski32-original.zip`. SkiFree and its original artwork are by Chris Pirih: https://ski.ihoc.net/.
 
-## Playing
+## Solo wrecking ball
+
+Choose **Solo wrecking ball** on the opening screen. One skier pulls a heavy metal ball on a chain. Steer left and right to swing it; brake to let its momentum carry it ahead; tuck to build speed. The ball stays on the snow while you jump.
+
+- **Ball:** smashes trees, large pines, metal poles, rocks, other skiers, snowboarders, dogs, and the yeti. Direct ball contact does not require a minimum speed.
+- **Chain:** hits rocks and characters, including the yeti. It never destroys trees or poles, regardless of speed. Those obstacles snag it until you steer around or hit them with the ball.
+- Character hits keep the existing bloody explosions and scoring. The blood toggle still works. Jump ramps remain usable.
+- The camera keeps the skier and ball visible in portrait and landscape. The original keyboard and touch controls, 2,000 m yeti encounter, restart, and endless continuation work in solo mode.
+
+The multiplayer rules below still apply to two skiers and bot practice.
+
+## Playing with a partner
 
 - Phone: drag the large ski pad left/right to steer, up to brake, down to tuck. Separate Brake, Tuck, and Jump buttons support simultaneous touches. Portrait and landscape layouts both work.
 - Keyboard: left/right or A/D steer; up or W brake; down or S tuck; Space jumps. Shift also tucks.
@@ -47,12 +58,15 @@ npm run test:webkit
 
 Chrome browser tests require installed Google Chrome. The WebKit smoke test requires `npx playwright install webkit`, or `WEBKIT_EXECUTABLE` pointing to an installed Playwright WebKit executable. Network tests require internet access to the public signaling service. `SKIFREE_URL` can point the Chrome browser/network tests at the deployed site. Screenshots are written to ignored `test-results/`. The optional `?debug` query exposes the current local simulation for testing; it grants no additional authority over other clients.
 
+Set `SKIFREE_SOLO=1` when running `test:browser` or `test:webkit` to exercise the solo mode, touch controls, rotation, and restart. Solo physics tests run with `npm test` and cover ball momentum, swept impact, tree/pole exceptions, snag recovery, both yeti weapons, and long-run determinism.
+
 Tests cover spring momentum and recoil, swept collisions, one-time kills and scoring, bloody yeti destruction, the 2,000 m trigger, long-run deterministic bounds, protocol validation, phone multi-touch/layout, two-browser gameplay, third-player rejection, pause/resume, and reconnection. Browser device emulation is not a substitute for physical Android/iPhone testing on the players’ actual Wi-Fi.
 
 Pushing `main` runs syntax and physics/protocol checks and deploys `site/` through GitHub Actions to GitHub Pages.
 
 ## Source layout
 
+- `site/solo-physics.js`: one-skier simulation, heavy rolling ball, weighted tether, separate ball/chain collision rules.
 - `site/physics.js`: authoritative fixed-step simulation, spring, swept collisions, procedural terrain, yeti, scoring.
 - `site/room.js`, `site/protocol.js`: peer connection lifecycle and input/state validation.
 - `site/view.js`, `site/sound.js`: original sprite rendering, camera, chain, particles, generated audio.

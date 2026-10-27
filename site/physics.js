@@ -56,7 +56,7 @@ export class World{
   }
   event(type,x,y,extra={}){const e={id:this.nextEvent++,time:this.time,type,x,y,...extra};this.events.push(e);if(this.events.length>100)this.events.shift();return e;}
   generate(){
-    const center=(this.players[0].x+this.players[1].x)/2,ahead=Math.max(...this.players.map(p=>p.y))+820;
+    const center=this.players.reduce((sum,p)=>sum+p.x,0)/this.players.length,ahead=Math.max(...this.players.map(p=>p.y))+820;
     while(this.nextChunk*320<ahead){
       const chunk=this.nextChunk++,rng=random(this.seed+chunk*7919),base=chunk*320;
       for(let i=0;i<10;i++){
@@ -71,12 +71,12 @@ export class World{
     const behind=Math.min(...this.players.map(p=>p.y))-700;
     this.entities=this.entities.filter(e=>e.y>behind&&(e.alive||this.time-(e.deadAt||0)<3));
   }
-  destroy(e){
-    if(!e.alive||e.kind==='pole')return;e.alive=false;e.deadAt=this.time;
+  destroy(e,weapon='chain'){
+    if(!e.alive||e.kind==='pole'&&!(this.ball&&weapon==='ball'))return;e.alive=false;e.deadAt=this.time;
     const bloody=['skier','boarder','dog','yeti'].includes(e.kind);this.combo=this.time-this.lastKill<1.7?Math.min(8,this.combo+1):1;this.lastKill=this.time;
     if(bloody)this.kills++;else this.wrecks++;
     this.score+=(e.kind==='yeti'?1000:bloody?100:20)*this.combo;
-    this.event(bloody?'blood':'debris',e.x,e.y,{kind:e.kind,combo:this.combo,seed:(this.seed^e.id*12347)>>>0});
+    this.event(bloody?'blood':'debris',e.x,e.y,{kind:e.kind,weapon,combo:this.combo,seed:(this.seed^e.id*12347)>>>0});
     if(e.kind==='yeti'){this.yetiKills++;if(this.phase==='yeti'){this.phase='won';this.event('win',e.x,e.y);}}
   }
   continue(){if(this.phase==='won'){this.phase='endless';this.nextYeti=Math.max(...this.players.map(p=>p.y))+850;}}
