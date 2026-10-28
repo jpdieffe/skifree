@@ -1,12 +1,13 @@
 import {World,STEP,clamp,chainPath,sweptChainHit,pointSegment} from './physics.js';
+import {moveYeti} from './yetis.js';
 
 export const BALL_RADIUS=26,BALL_MASS=2.6,BALL_CHAIN_LENGTH=138,BALL_MAX_LENGTH=172;
 const solid=e=>['tree','pine','pole'].includes(e.kind);
-const center=e=>({x:e.x,y:e.y-(e.kind==='yeti'?18:8)});
+const center=e=>({x:e.x,y:e.y-(e.kind==='yeti'?(e.centerY??18):8)});
 
 // Relative motion sweeps catch moving targets as well as fast ball swings.
 export function ballHit(e,before,after){
- const p=center(e),old={x:e.px??e.x,y:(e.py??e.y)-(e.kind==='yeti'?18:8)};
+ const p=center(e),old={x:e.px??e.x,y:(e.py??e.y)-(e.kind==='yeti'?(e.centerY??18):8)};
  return pointSegment(0,0,before.x-old.x,before.y-12-old.y,after.x-p.x,after.y-12-p.y)<=BALL_RADIUS+e.r;
 }
 export function ballTether(a,b,dt){
@@ -60,6 +61,7 @@ export class SoloWorld extends World{
  constructor(seed=1,run=1){
   super(seed,run);this.players=[{...this.players[0],x:0}];
   this.ball={x:92,y:76,vx:0,vy:115,r:BALL_RADIUS,roll:0};
+  this.swingDirection=1;
  }
  destroy(e,weapon='chain'){if(solid(e)&&weapon!=='ball')return;super.destroy(e,weapon);}
  step(dt=STEP){
@@ -68,11 +70,21 @@ export class SoloWorld extends World{
   p.crash=Math.max(0,p.crash-dt);p.jump=Math.max(0,p.jump-dt);p.jumpCooldown=Math.max(0,p.jumpCooldown-dt);
   if(input.jump&&!p.jumpCooldown&&!p.crash){p.jump=.72;p.jumpCooldown=1.4;this.event('jump',p.x,p.y,{player:0});}
   const target=input.brake||input.y<-.35?28:input.boost||input.y>.5?185:118;
-  p.vx+=(clamp(input.x||0,-1,1)*220-p.vx*1.8)*dt;p.vy+=((p.crash?25:target)-p.vy)*1.3*dt;
+  p.vx+=(clamp(input.x||0,-1,1)*300-p.vx*1.8)*dt;p.vy+=((p.crash?25:target)-p.vy)*1.3*dt;
   if(p.crash)p.vx*=Math.exp(-2*dt);
   // Downhill gravity and low rolling friction let the weight overtake the skier
   // when braking, and retain sideways momentum when the skier changes direction.
   b.vx*=Math.exp(-.22*dt);b.vy+=(80-b.vy*.55)*dt;
+  // Steering pumps the swing; the solo Swing button keeps it rotating even
+  // while skiing straight. A tangential impulse preserves the weighted tether.
+  if(Math.abs(input.x||0)>.15)this.swingDirection=Math.sign(input.x);
+  const dx=b.x-p.x,dy=b.y-p.y,length=Math.hypot(dx,dy);
+  if(!p.crash&&length>30&&(input.swing||Math.abs(input.x||0)>.15)){
+    const tx=-dy/length,ty=dx/length,speed=(b.vx-p.vx)*tx+(b.vy-p.vy)*ty;
+    const desired=this.swingDirection*(input.swing?300:170*Math.abs(input.x));
+    const push=clamp((desired-speed)*3,-540,540)*dt;
+    b.vx+=tx*push;b.vy+=ty*push;p.vx-=tx*push*.08;p.vy-=ty*push*.08;
+  }
   this.tension=ballTether(p,b,dt);
   if(this.tension>.55&&this.snapArmed){this.event('stretch',(p.x+b.x)/2,(p.y+b.y)/2);this.snapArmed=false;}
   if(this.tension<.15)this.snapArmed=true;
@@ -83,7 +95,7 @@ export class SoloWorld extends World{
   p.angle=Math.atan2(p.vx,Math.max(25,p.vy));
   for(const e of this.entities){
    if(!e.alive)continue;e.px=e.x;e.py=e.y;
-   if(e.kind==='yeti'){const dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy)||1;e.vx=dx/d*218;e.vy=dy/d*218;}
+   if(e.kind==='yeti')moveYeti(this,e,dt);
    e.x+=(e.vx||0)*dt;e.y+=(e.vy||0)*dt;
   }
   // The ball can break a solid hazard, but the chain alone can never cut it.
@@ -103,8 +115,7 @@ export class SoloWorld extends World{
   }
   b.roll+=Math.hypot(b.x-before[1].x,b.y-before[1].y)/BALL_RADIUS;
   this.distance=Math.max(this.distance,Math.floor(p.y*.25));
-  if(this.distance>=2000&&this.phase==='skiing'){this.phase='yeti';this.spawn('yeti',p.x+125,p.y-240);this.event('warning',p.x,p.y);}
-  if(this.phase==='endless'&&p.y>this.nextYeti){this.spawn('yeti',p.x-160,p.y-260);this.nextYeti+=1000;this.event('warning',p.x,p.y);}
+  this.encounters();
   this.generate();
  }
  snapshot(){return {...super.snapshot(),mode:'solo',ball:{...this.ball}};}

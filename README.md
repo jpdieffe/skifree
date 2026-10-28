@@ -8,14 +8,29 @@ This is a **browser adaptation**, with new simulation and procedural slopes, usi
 
 ## Solo wrecking ball
 
-Choose **Solo wrecking ball** on the opening screen. One skier pulls a heavy metal ball on a chain. Steer left and right to swing it; brake to let its momentum carry it ahead; tuck to build speed. The ball stays on the snow while you jump.
+Choose **Solo wrecking ball** on the opening screen. Steering now adds momentum to the swing. Hold **SWING** on a phone, or **E** on a keyboard, to keep the ball rotating around you. Steer left/right to choose or reverse its direction. Brake to let its momentum carry it ahead; tuck to build speed. The ball stays on the snow while you jump.
 
 - **Ball:** smashes trees, large pines, metal poles, rocks, other skiers, snowboarders, dogs, and the yeti. Direct ball contact does not require a minimum speed.
 - **Chain:** hits rocks and characters, including the yeti. It never destroys trees or poles, regardless of speed. Those obstacles snag it until you steer around or hit them with the ball.
 - Character hits keep the existing bloody explosions and scoring. The blood toggle still works. Jump ramps remain usable.
-- The camera keeps the skier and ball visible in portrait and landscape. The original keyboard and touch controls, 2,000 m yeti encounter, restart, and endless continuation work in solo mode.
+- The wider camera shows the surrounding slope as well as the full swing in portrait and landscape. It caps magnification at 1.25 rather than 2.35, with more room ahead to spot hazards.
+- The first Yeti arrives at 2,000 m. Killing it continues the run automatically; there is no victory screen or Continue button to interrupt skiing.
 
 The multiplayer rules below still apply to two skiers and bot practice.
+
+## Yeti levels
+
+Solo, bot practice, and online multiplayer all advance through the same encounters. After a kill, the next Yeti appears another 300 m downhill. The HUD shows its name, remaining hits, or the next encounter distance. Surviving a hit briefly stuns the Yeti; repeated contact cannot drain every hit point in one frame. Killing it still produces the bloody explosion (or the blood-toggle alternative).
+
+| Level | Yeti | First-cycle hits | Behavior |
+| --- | --- | --- | --- |
+| 1 | Regular | 1 | Original pursuit |
+| 2 | Cyborg | 2 | Metal body and red visor; locks aim, then charges |
+| 3 | Huge | 3 | Much larger body and collision radius; slower pursuit |
+| 4 | Super | 3 | Gold body, red cape, faster weaving pursuit |
+| 5 | Tree | 4 | Green body and branches; plants up to 12 breakable trees |
+
+The sequence repeats with higher levels, gradually increasing speed and durability (capped at seven hits). Variants reuse the original Yeti animation with recoloring and added details. Trees planted by Tree Yetis follow the existing ball/chain rules.
 
 ## Playing with a partner
 
@@ -25,7 +40,7 @@ The multiplayer rules below still apply to two skiers and bot practice.
 - Trees and large pines require a chain impact speed of 150 world units/second; normal downhill speed is 118 and tucking reaches 185. Speed is measured at the struck chain segment, perpendicular to the chain, so a fast swing can also cut a tree. Slow tree hits stop the pair.
 - Metal poles are indestructible. Hitting one with the chain or either skier stops the pair, even at full speed or while jumping. Steer sideways around the obstacle to resume. Pole hits give no points.
 - Both skiers stay in the camera’s view. Watch the tension meter, chain hits, and shared score. Nearby hits earn combo multipliers.
-- The yeti pursues the pair at 2,000 meters. Kill it with the chain to win, then choose another run or continue in endless mode.
+- The yeti pursues the pair at 2,000 meters. Kill it with the chain and keep skiing into the next Yeti level automatically.
 - Keep both game tabs visible. Switching away or disconnecting pauses the run. A disconnected guest can reconnect to the same host and resume.
 
 ## Multiplayer and connection troubleshooting
@@ -54,6 +69,7 @@ npm test
 npm run test:browser
 npm run test:network
 npm run test:webkit
+npm run test:yetis
 ```
 
 Chrome browser tests require installed Google Chrome. The WebKit smoke test requires `npx playwright install webkit`, or `WEBKIT_EXECUTABLE` pointing to an installed Playwright WebKit executable. Network tests require internet access to the public signaling service. `SKIFREE_URL` can point the Chrome browser/network tests at the deployed site. Screenshots are written to ignored `test-results/`. The optional `?debug` query exposes the current local simulation for testing; it grants no additional authority over other clients.
@@ -67,6 +83,7 @@ Pushing `main` runs syntax and physics/protocol checks and deploys `site/` throu
 ## Source layout
 
 - `site/solo-physics.js`: one-skier simulation, heavy rolling ball, weighted tether, separate ball/chain collision rules.
+- `site/yetis.js`: escalating Yeti profiles, cyborg charges, super weaving, and bounded tree planting.
 - `site/physics.js`: authoritative fixed-step simulation, spring, swept collisions, procedural terrain, yeti, scoring.
 - `site/room.js`, `site/protocol.js`: peer connection lifecycle and input/state validation.
 - `site/view.js`, `site/sound.js`: original sprite rendering, camera, chain, particles, generated audio.

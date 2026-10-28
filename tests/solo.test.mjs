@@ -31,9 +31,9 @@ test('chain snags permit steering free, and the ball can subsequently break the 
 });
 test('solo chain hits rocks and characters, and either weapon can kill the yeti',()=>{
  for(const kind of ['rock','skier','boarder','dog','yeti']){
-  const w=fixture(),p=w.players[0],b=w.ball;Object.assign(p,{x:-68,y:0});Object.assign(b,{x:68,y:0});if(kind==='yeti')w.phase='yeti';const e=w.spawn(kind,0,kind==='yeti'?6:-4,{vx:0,vy:0});w.step();assert.equal(e.alive,false,kind);assert.ok(w.events.some(e=>e.weapon==='chain'));if(kind==='yeti'){assert.equal(w.phase,'won');w.continue();assert.equal(w.phase,'endless');}
+  const w=fixture(),p=w.players[0],b=w.ball;Object.assign(p,{x:-68,y:0});Object.assign(b,{x:68,y:0});if(kind==='yeti')w.phase='yeti';const e=w.spawn(kind,0,kind==='yeti'?6:-4,{vx:0,vy:0});w.step();assert.equal(e.alive,false,kind);assert.ok(w.events.some(e=>e.weapon==='chain'));if(kind==='yeti'){assert.equal(w.phase,'endless');w.continue();assert.equal(w.phase,'endless');}
  }
- const w=fixture();w.phase='yeti';w.spawn('yeti',w.ball.x,w.ball.y+6);w.step();assert.equal(w.phase,'won');assert.ok(w.events.some(e=>e.type==='blood'&&e.weapon==='ball'));
+ const w=fixture();w.phase='yeti';w.spawn('yeti',w.ball.x,w.ball.y+6);w.step();assert.equal(w.phase,'endless');assert.ok(w.events.some(e=>e.type==='blood'&&e.weapon==='ball'));
 });
 test('solo distance and yeti trigger use the skier, not the ball',()=>{
  const w=fixture();w.players[0].y=8000;w.ball.y=7890;w.step();assert.equal(w.phase,'yeti');assert.ok(w.distance>=2000);assert.ok(w.entities.some(e=>e.kind==='yeti'));

@@ -19,9 +19,9 @@ test('chain destroys each character once, produces blood and shared scoring',()=
  assert.equal(victim.alive,false);assert.equal(w.kills,1);assert.equal(w.score,100);assert.equal(w.events.find(e=>e.type==='blood').kind,'skier');
  for(let i=0;i<10;i++)w.step();assert.equal(w.kills,1);assert.equal(w.score,100);
 });
-test('scenery shatters; the yeti explodes and ends the run',()=>{
+test('scenery shatters; the yeti explodes and the run continues automatically',()=>{
  const w=new World(1);w.entities=[];w.spawn('rock',0,-4);w.step();assert.equal(w.wrecks,1);assert.ok(w.events.some(e=>e.type==='debris'));
- w.phase='yeti';w.spawn('yeti',0,w.players[0].y+6);w.step();assert.equal(w.yetiKills,1);assert.equal(w.phase,'won');assert.ok(w.events.some(e=>e.type==='blood'&&e.kind==='yeti'));assert.ok(w.events.some(e=>e.type==='win'));
+ w.phase='yeti';w.spawn('yeti',0,w.players[0].y+6);w.step();assert.equal(w.yetiKills,1);assert.equal(w.phase,'endless');assert.ok(w.events.some(e=>e.type==='blood'&&e.kind==='yeti'));assert.ok(w.events.some(e=>e.type==='win'));
  w.continue();assert.equal(w.phase,'endless');
 });
 test('the original 2000m milestone releases a pursuing yeti',()=>{

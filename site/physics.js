@@ -1,3 +1,4 @@
+import {yetiProfile,moveYeti} from './yetis.js';
 export const STEP=1/60,REST_LENGTH=138,MAX_LENGTH=310,FINISH_Y=8000;
 // Normal skiing is 118; tucking reaches 185. A fast chain swing also counts.
 export const TREE_CUT_SPEED=150;
@@ -10,7 +11,7 @@ export function chainPath(a,b){
 }
 function inTriangle(p,a,b,c){const cross=(p,a,b)=>(p.x-b.x)*(a.y-b.y)-(a.x-b.x)*(p.y-b.y),d1=cross(p,a,b),d2=cross(p,b,c),d3=cross(p,c,a);return !(Math.min(d1,d2,d3)<0&&Math.max(d1,d2,d3)>0)&&Math.abs(cross(a,b,c))>.00001;}
 export function sweptChainHit(entity,previous,current){
-  const point={x:entity.x,y:entity.y-(entity.kind==='yeti'?18:8)},old={x:entity.px??entity.x,y:(entity.py??entity.y)-(entity.kind==='yeti'?18:8)},radius=entity.r+3;
+  const offset=entity.kind==='yeti'?(entity.centerY??18):8,point={x:entity.x,y:entity.y-offset},old={x:entity.px??entity.x,y:(entity.py??entity.y)-offset},radius=entity.r+3;
   for(let i=1;i<current.length;i++){
     const a=previous[i-1],b=previous[i],c=current[i],d=current[i-1];
     for(const [u,v]of [[a,b],[b,c],[c,d],[d,a]])if(pointSegment(point.x,point.y,u.x,u.y,v.x,v.y)<=radius)return true;
@@ -52,7 +53,9 @@ export class World{
   }
   spawn(kind,x,y,extra={}){
     const defaults={tree:{r:11,variant:49},pine:{r:15,variant:51},pole:{r:7,variant:64},rock:{r:9,variant:45},skier:{r:10,variant:28,vx:24,vy:38},boarder:{r:11,variant:37,vx:-24,vy:55},dog:{r:8,variant:33,vx:50,vy:0},yeti:{r:19,variant:68,vx:0,vy:0},ramp:{r:14,variant:48}};
-    const e={id:this.nextEntity++,kind,x,y,px:x,py:y,alive:true,...defaults[kind],...extra};this.entities.push(e);return e;
+    const profile=kind==='yeti'?yetiProfile(extra.level??this.yetiKills+1):null;
+    const boss=profile?{yetiType:profile.type,level:profile.level,hp:profile.hp,maxHp:profile.hp,r:19*profile.scale/1.25,centerY:18*profile.scale/1.25,spawnedAt:this.time,nextPlant:this.time+2.5}:{};
+    const e={id:this.nextEntity++,kind,x,y,px:x,py:y,alive:true,...defaults[kind],...boss,...extra};this.entities.push(e);return e;
   }
   event(type,x,y,extra={}){const e={id:this.nextEvent++,time:this.time,type,x,y,...extra};this.events.push(e);if(this.events.length>100)this.events.shift();return e;}
   generate(){
@@ -69,15 +72,33 @@ export class World{
       if(chunk>=2&&chunk%2===0)this.spawn('pole',clamp(center+(rng()-.5)*650,-1000,1000),base+160);
     }
     const behind=Math.min(...this.players.map(p=>p.y))-700;
-    this.entities=this.entities.filter(e=>e.y>behind&&(e.alive||this.time-(e.deadAt||0)<3));
+    this.entities=this.entities.filter(e=>e.kind==='yeti'&&e.alive||e.y>behind&&(e.alive||this.time-(e.deadAt||0)<3));
   }
   destroy(e,weapon='chain'){
-    if(!e.alive||e.kind==='pole'&&!(this.ball&&weapon==='ball'))return;e.alive=false;e.deadAt=this.time;
+    if(!e.alive||e.kind==='pole'&&!(this.ball&&weapon==='ball'))return;
+    if(e.kind==='yeti'){
+      if(this.time<(e.hitUntil||0))return;
+      e.hp--;e.hitUntil=this.time+.8;
+      if(e.hp>0){
+        e.stunnedUntil=this.time+.45;const body=weapon==='ball'&&this.ball?this.ball:this.players[0],dx=e.x-body.x,dy=e.y-body.y,d=Math.hypot(dx,dy)||1;
+        e.x+=dx/d*48;e.y+=dy/d*48;
+        this.event('armor',e.x,e.y,{kind:'yeti',level:e.level,hp:e.hp});return;
+      }
+    }
+    e.alive=false;e.deadAt=this.time;
     const bloody=['skier','boarder','dog','yeti'].includes(e.kind);this.combo=this.time-this.lastKill<1.7?Math.min(8,this.combo+1):1;this.lastKill=this.time;
     if(bloody)this.kills++;else this.wrecks++;
     this.score+=(e.kind==='yeti'?1000:bloody?100:20)*this.combo;
-    this.event(bloody?'blood':'debris',e.x,e.y,{kind:e.kind,weapon,combo:this.combo,seed:(this.seed^e.id*12347)>>>0});
-    if(e.kind==='yeti'){this.yetiKills++;if(this.phase==='yeti'){this.phase='won';this.event('win',e.x,e.y);}}
+    this.event(bloody?'blood':'debris',e.x,e.y,{kind:e.kind,weapon,combo:this.combo,level:e.level,seed:(this.seed^e.id*12347)>>>0});
+    if(e.kind==='yeti'){this.yetiKills++;this.phase='endless';this.nextYeti=Math.max(...this.players.map(p=>p.y))+1200;this.event('win',e.x,e.y,{level:e.level});}
+  }
+  encounters(){
+    const y=Math.min(...this.players.map(p=>p.y)),x=this.players.reduce((n,p)=>n+p.x,0)/this.players.length;
+    if(this.entities.some(e=>e.alive&&e.kind==='yeti'))return;
+    if(this.distance>=2000&&this.phase==='skiing'||this.phase==='endless'&&y>=this.nextYeti){
+      this.phase='yeti';const e=this.spawn('yeti',clamp(x+(this.yetiKills%2?-125:125),-1000,1000),y-240);
+      this.event('warning',x,y,{level:e.level});
+    }
   }
   continue(){if(this.phase==='won'){this.phase='endless';this.nextYeti=Math.max(...this.players.map(p=>p.y))+850;}}
   stopAt(e,before){
@@ -126,10 +147,7 @@ export class World{
     const current=chainPath(a,b);
     for(const e of this.entities){
       if(!e.alive)continue;e.px=e.x;e.py=e.y;
-      if(e.kind==='yeti'){
-        const target=this.players.reduce((best,p)=>Math.hypot(p.x-e.x,p.y-e.y)<Math.hypot(best.x-e.x,best.y-e.y)?p:best,a),tx=target.x-e.x,ty=target.y-e.y,len=Math.hypot(tx,ty)||1;
-        e.vx=tx/len*218;e.vy=ty/len*218;
-      }
+      if(e.kind==='yeti')moveYeti(this,e,dt);
       e.x+=(e.vx||0)*dt;e.y+=(e.vy||0)*dt;
       if(!['ramp','pole'].includes(e.kind)&&sweptChainHit(e,before,current)&&(!['tree','pine'].includes(e.kind)||cuttable.has(e.id)&&chainImpactSpeed(e,before,current,dt)>=TREE_CUT_SPEED)){this.destroy(e);continue;}
       if(e.kind==='pole')continue;
@@ -141,17 +159,15 @@ export class World{
       }
     }
     this.distance=Math.max(this.distance,Math.floor(Math.min(a.y,b.y)*.25));
-    if(this.distance>=2000&&this.phase==='skiing'){
-      this.phase='yeti';this.spawn('yeti',(a.x+b.x)/2+125,Math.min(a.y,b.y)-240);this.event('warning',(a.x+b.x)/2,(a.y+b.y)/2);
-    }
-    if(this.phase==='endless'&&Math.min(a.y,b.y)>this.nextYeti){this.spawn('yeti',(a.x+b.x)/2-160,Math.min(a.y,b.y)-260);this.nextYeti+=1000;this.event('warning',a.x,a.y);}
+    this.encounters();
     this.generate();
   }
   snapshot(){
     const round=v=>Math.round(v*10)/10;
     return {run:this.run,seed:this.seed,time:this.time,phase:this.phase,distance:this.distance,score:this.score,kills:this.kills,wrecks:this.wrecks,combo:this.time-this.lastKill<1.7?this.combo:0,tension:this.tension,yetiKills:this.yetiKills,
       players:this.players.map(p=>({...p,x:round(p.x),y:round(p.y),vx:round(p.vx),vy:round(p.vy)})),
-      entities:this.entities.filter(e=>e.alive).map(({id,kind,x,y,vx,vy,variant,r})=>({id,kind,x:round(x),y:round(y),vx,vy,variant,r})),
+      nextYetiDistance:this.yetiKills?Math.ceil(this.nextYeti*.25):2000,
+      entities:this.entities.filter(e=>e.alive).map(({id,kind,x,y,vx,vy,variant,r,level,hp,maxHp,charging,hitUntil})=>({id,kind,x:round(x),y:round(y),vx,vy,variant,r,...(kind==='yeti'?{level,hp,maxHp,charging:!!charging,hitUntil:hitUntil||0}:{})})),
       events:this.events.filter(e=>this.time-e.time<3)};
   }
 }
