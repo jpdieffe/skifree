@@ -53,7 +53,7 @@ export class View{
     const alpha=clamp(frameAlpha??(now-this.received)/50,0,1),players=s.players.map((p,i)=>interpolateBody(p,this.previous?.players[i],alpha));
     const ball=s.mode==='solo'&&players.length===1&&s.ball?interpolateBody(s.ball,this.previous?.ball,alpha):null,bodies=ball?[players[0],ball]:players;
     const waves=s.mode==='waves',single=!!ball||waves,[a,b=a]=bodies,dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
-    const zoom=this.preview?1.6:single?soloZoom(w,h):slopeZoom(w,h,dx,dy),cx=single?a.x:(a.x+b.x)/2,cy=single?a.y:(a.y+b.y)/2;
+    const zoom=this.preview?1.6:waves?clamp(Math.min(1,w/390,h/380),.6,1):single?soloZoom(w,h):slopeZoom(w,h,dx,dy),cx=single?a.x:(a.x+b.x)/2,cy=single?a.y:(a.y+b.y)/2;
     if(single){this.camera={x:cx,y:cy,z:zoom};this.shake=0;}
     else {if(!this.camera)this.camera={x:cx,y:cy,z:zoom};const k=.15;this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;this.camera.z+=(zoom-this.camera.z)*.09;}
     this.shake*=.88;const shakeX=Math.sin(now*.07)*this.shake,shakeY=Math.cos(now*.08)*this.shake*.6;

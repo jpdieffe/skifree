@@ -13,3 +13,28 @@ body.waves #game{grid-template-rows:64px minmax(0,1fr) 28px}body.waves #controls
 #arsenal button{min-width:90px;min-height:64px;padding:7px 10px;border-radius:7px;border-top:3px solid var(--gun);background:#fff;font-size:9px;display:grid;grid-template-columns:18px 1fr;gap:4px;text-align:left;align-items:center}
 #arsenal b{grid-row:span 2;font-size:19px;color:var(--gun)}#arsenal small{font-size:8px;color:#67808d}#arsenal .selected{outline:2px solid var(--gun);background:#f8fcff}#arsenal button:disabled{opacity:.45;cursor:default}
 @media(max-width:800px){#arsenal{gap:4px}#arsenal button{min-width:0;width:90px;padding:6px;font-size:8px}body.waves .keyboard-hint{font-size:9px}}
+
+.online-button{background:#087e97;margin-top:12px}.online-button span{color:#def6f7}
+body.online-waves.touch #game,body.gunner #game{grid-template-rows:60px minmax(0,1fr) 150px}
+body.online-waves.touch:not(.gunner) #controls{display:flex}
+body.online-waves .keyboard-hint,body.gunner #controls{display:none}
+#gunner-controls{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px max(18px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));background:#eff6f8;border-top:1px solid #d9e7ed;touch-action:none;user-select:none;-webkit-user-select:none}
+.gunner-guide{display:grid;gap:8px;font-size:13px;color:#547585}.gunner-guide b{font-size:10px;letter-spacing:1px;color:#087e97}.gunner-guide small{font-size:10px}
+#aim-pad{position:relative;width:130px;height:130px;flex-shrink:0;border:2px solid #087e97;border-radius:50%;background:#d9eef0;touch-action:none}
+#aim-pad>span{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:9px;font-weight:900;color:#087e97}
+#aim-stick{position:absolute;left:39px;top:39px;width:48px;height:48px;background:white;border:2px solid #087e97;border-radius:50%;pointer-events:none}
+#aim-pad.active{background:#b1dedf}#aim-pad.active #aim-stick{background:#087e97}
+body.online-waves #encounter{max-width:calc(100% - 28px);left:14px;top:10px;font-size:9px}
+body.online-waves #notice{top:42px;left:14px;right:14px;max-width:none;text-align:left;font-size:10px}
+body.online-waves #arsenal{width:560px;gap:4px;padding:5px;bottom:8px}
+body.online-waves #arsenal button{flex:1;min-width:0;width:auto;grid-template-columns:1fr;gap:2px;padding:5px 2px;text-align:center;min-height:60px;font-size:8px;overflow-wrap:anywhere}
+body.online-waves #arsenal b{grid-row:auto;font-size:13px}body.online-waves #arsenal small{font-size:7px}
+@media(orientation:landscape) and (max-height:600px){
+ body.online-waves.touch #game,body.gunner #game{grid-template-rows:49px minmax(0,1fr)}
+ body.online-waves #arsenal{top:auto;bottom:14px;left:calc(50% - 40px);width:350px;max-width:calc(100% - 390px)}
+ body.gunner #arsenal{left:18px;transform:none;max-width:calc(100% - 180px);bottom:14px}
+ body.gunner .gunner-guide{display:none}
+ body.online-waves #arsenal button{min-height:48px}body.online-waves #arsenal small{display:none}
+ #gunner-controls{position:fixed;inset:auto 0 0;z-index:4;background:linear-gradient(transparent,#eff6f866);border:0;pointer-events:none;justify-content:flex-end}
+ #aim-pad{pointer-events:auto;width:120px;height:120px}#aim-stick{left:34px;top:34px}.gunner-guide{font-size:11px;gap:4px;max-width:150px}
+}

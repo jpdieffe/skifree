@@ -6,13 +6,24 @@ Two visible skiers share a downhill run, connected by an elastic, lethal chain. 
 
 This is a **browser adaptation**, with new simulation and procedural slopes, using the original SkiFree artwork extracted from the supplied Windows game. It does not execute or emulate the original EXE. The supplied archive is preserved unchanged at `assets/ski32-original.zip`. SkiFree and its original artwork are by Chris Pirih: https://ski.ihoc.net/.
 
+## Online Yeti Onslaught
+
+Choose **Online Yeti Onslaught** on either phone to host as the **skier**. Share the room code or invitation; the second phone uses **Join your friend** and becomes the **gunner** automatically. Both phones show the same mountain, monsters, bullets, weapon pickups, and score. They can use different networks. No computer or locally running server is needed; keep the host phone's game tab open.
+
+- **Skier:** drag the ski pad to steer, up to brake, down to tuck; tap Jump. Collect crates to unlock and equip weapons for the gunner. Keyboard controls also work.
+- **Gunner:** drag the large aim pad in any direction to aim and fire; release to stop. Drag farther to extend the aim distance for rockets. Alternatively, hold a target directly on the slope. Tap an unlocked weapon to equip it; mouse aiming and number keys also work.
+- Both roles support portrait and landscape. Either player's options menu or hidden tab pauses the run. Disconnecting pauses it too; the gunner can rejoin the same room without resetting progress. The host starts new runs.
+- Online rooms negotiate their mode and validate role-specific inputs. The host owns movement, collisions, inventory and damage; the guest sends bounded aim, fire and weapon requests. Stale gunner input stops firing after 450 ms. The existing chain mode and desktop co-op remain separate menu choices.
+
+The existing PeerJS/WebRTC connection requirements below apply, including optional TURN for networks that block direct connections.
+
 ## Desktop Yeti Onslaught
 
 Choose **Yeti Onslaught** to share one computer: player one skis with **arrows / WASD**, tucks with Down / S, brakes with Up / W, and jumps with **Space**. Player two aims with the **mouse** and clicks or holds the left button to fire. The opening button requires a mouse-capable device; this mode has no touch controls or online room. The options menu pauses the run.
 
 Ski through numbered crates to permanently unlock and immediately equip weapons. All guns have unlimited ammunition. Press **1-6** to choose an unlocked slot: **1 pistol**, **2 machine gun**, **3 shotgun** (short-range spread), **4 sniper rifle** (pierces a line), **5 rocket launcher** (explodes on a monster or at the aimed distance), **6 plasma rifle** (rapid piercing bolts). The weapon bar shows which guns are ready. Each new run resets the inventory.
 
-Ten stages each contain three waves, mixing regular, cyborg, huge, super and tree monsters. Eliminate the entire wave to earn a five-second supply break. After stage ten, the stages repeat with tougher monsters. Wave size grows to 72, with up to 48 monsters active together. Cyborgs charge, super monsters weave, and tree monsters plant obstacles. The camera stays fixed on the skier at the same scale as solo mode.
+Ten stages each contain three waves, mixing regular, cyborg, huge, super and tree monsters. Eliminate the entire wave to earn a five-second supply break. After stage ten, the stages repeat with tougher monsters. Wave size grows to 72, with up to 48 monsters active together. Cyborgs charge, super monsters weave, and tree monsters plant obstacles. The camera stays fixed on the skier, with a closer phone view for readable monsters and aiming.
 
 When a Yeti catches you in any mode, the original grab, swallow and chewing sprites play before the retry screen appears. Capture state is included in multiplayer snapshots so both players see the same sequence.
 
@@ -77,6 +88,7 @@ Open http://127.0.0.1:4177/. `prepare:vendor` bundles pinned PeerJS and rebuilds
 npm run check
 npm test
 npm run test:browser
+npm run test:online-waves
 npm run test:solo-view
 npm run test:waves
 npm run test:network

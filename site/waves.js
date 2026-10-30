@@ -26,7 +26,7 @@ export function wavePlan(number){
  return {...stage,number,stage:stageIndex+1,wave:(number-1)%3+1,cycle:Math.floor(stageIndex/STAGES.length),count:Math.min(72,12+stageIndex*4+((number-1)%3)*5)};
 }
 
-// Local shared-keyboard/mouse mode. No ball, chain, network or touch controls.
+// Shared simulation for desktop co-op and online skier/gunner rooms.
 export class WaveWorld extends World{
  constructor(seed=1,run=1){
   super(seed,run);this.players=[{...this.players[0],x:0}];this.entities=[];
@@ -128,7 +128,7 @@ export class WaveWorld extends World{
   const p=this.players[0],input=this.inputs[0]||{},old={x:p.x,y:p.y};
   p.crash=Math.max(0,p.crash-dt);p.jump=Math.max(0,p.jump-dt);p.jumpCooldown=Math.max(0,p.jumpCooldown-dt);
   if(input.jump&&!p.jumpCooldown&&!p.crash){p.jump=.72;p.jumpCooldown=1.4;this.event('jump',p.x,p.y,{player:0});}
-  const target=input.brake?30:input.boost?210:145;
+  const target=input.brake||input.y<-.3?30:input.boost||input.y>.3?210:145;
   p.vx+=(clamp(input.x||0,-1,1)*370-p.vx*2.2)*dt;p.vy+=((p.crash?35:target)-p.vy)*2*dt;
   p.x=clamp(p.x+p.vx*dt,-1050,1050);p.y+=p.vy*dt;p.angle=Math.atan2(p.vx,Math.max(25,p.vy));
   for(const e of this.entities){e.px=e.x;e.py=e.y;if(e.alive&&e.kind==='yeti')this.moveMonster(e,p,dt);}
