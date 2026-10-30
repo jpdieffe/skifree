@@ -1,13 +1,20 @@
 import {chainPath,clamp,random} from './physics.js';
 import {yetiProfile} from './yetis.js';
+import {BALL_MAX_LENGTH,BALL_RADIUS} from './solo-physics.js';
 export function slopeZoom(w,h,dx,dy){return clamp(Math.min(1.25,w/480,h/380,(w-70)/(dx+100),(h-65)/(dy+180)),.35,1.25);}
+// Fit the entire swing around a fixed skier, independent of the ball's angle.
+// Desktop sprites use their original pixel size; small screens show more slope.
+export function soloZoom(w,h){const reach=BALL_MAX_LENGTH+BALL_RADIUS;return clamp(Math.min(1,w/640,h/480,(w/2-24)/reach,(h*.44-24)/reach),.25,1);}
+export function interpolateBody(body,old=body,alpha=1){
+ const out={...body};for(const key of ['x','y','angle','jump','roll'])if(Number.isFinite(body[key])&&Number.isFinite(old[key]))out[key]=old[key]+(body[key]-old[key])*alpha;return out;
+}
 export class Artwork{
   async load(){
     this.map=(await(await fetch('assets/sprites.json')).json()).sprites;
     this.images=await Promise.all(['original.png','partner.png'].map(async name=>{const im=new Image();im.src=`assets/${name}`;await im.decode();return im;}));return this;
   }
   draw(ctx,id,x,y,partner=false,scale=1,flip=false,tone=null){
-    const r=this.map[id];if(!r)return;ctx.save();ctx.translate(Math.round(x),Math.round(y));if(flip)ctx.scale(-1,1);
+    const r=this.map[id];if(!r)return;ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);
     let image=this.images[partner?1:0],sx=r.x,sy=r.y;
     if(tone){
       this.tints??=new Map();const key=`${id}:${tone}`;
@@ -27,23 +34,25 @@ export class View{
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.art=artwork;this.player=player;this.preview=preview;this.onEvent=event;this.blood=true;this.state=null;this.previous=null;this.lastEvent=0;this.effects=[];this.trails=[];this.camera=null;this.ghosts=[];this.run=null;this.shake=0;
   }
   set(state,immediate=false){
-    if(state.run!==this.run){this.effects=[];this.trails=[];this.lastEvent=0;this.previous=null;this.camera=null;this.run=state.run;}
-    this.previous=immediate?state:this.state;this.state=state;this.received=performance.now();
+    const newRun=state.run!==this.run;
+    if(newRun){this.effects=[];this.trails=[];this.lastEvent=0;this.previous=null;this.camera=null;this.run=state.run;}
+    this.previous=immediate||newRun?state:this.state;this.state=state;this.received=performance.now();
     for(const e of state.events)if(e.id>this.lastEvent){this.lastEvent=e.id;this.effects.push(e);if(e.type==='blood'||e.type==='debris')this.shake=e.kind==='yeti'?7:2;if(!this.preview)this.onEvent(e);}
     this.effects=this.effects.filter(e=>state.time-e.time<25).slice(-180);
   }
-  draw(now=performance.now()){
+  draw(now=performance.now(),frameAlpha){
     const s=this.state;if(!s)return;
     const c=this.ctx,w=this.canvas.clientWidth,h=this.canvas.clientHeight,dpr=Math.min(2,devicePixelRatio||1);
     if(this.canvas.width!==Math.round(w*dpr)||this.canvas.height!==Math.round(h*dpr)){this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);}
     c.setTransform(dpr,0,0,dpr,0,0);c.imageSmoothingEnabled=false;c.fillStyle='#fff';c.fillRect(0,0,w,h);
-    const alpha=clamp((now-this.received)/50,0,1),players=s.players.map((p,i)=>{const old=this.previous?.players[i]||p;return {...p,x:old.x+(p.x-old.x)*alpha,y:old.y+(p.y-old.y)*alpha};});
-    const ball=s.mode==='solo'&&players.length===1&&s.ball?{...s.ball}:null,bodies=ball?[players[0],ball]:players;
+    const alpha=clamp(frameAlpha??(now-this.received)/50,0,1),players=s.players.map((p,i)=>interpolateBody(p,this.previous?.players[i],alpha));
+    const ball=s.mode==='solo'&&players.length===1&&s.ball?interpolateBody(s.ball,this.previous?.ball,alpha):null,bodies=ball?[players[0],ball]:players;
     const [a,b]=bodies,dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
-    const zoom=this.preview?1.6:slopeZoom(w,h,dx,dy),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
-    if(!this.camera)this.camera={x:cx,y:cy,z:zoom};const k=.15;this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;this.camera.z+=(zoom-this.camera.z)*.09;
+    const zoom=this.preview?1.6:ball?soloZoom(w,h):slopeZoom(w,h,dx,dy),cx=ball?a.x:(a.x+b.x)/2,cy=ball?a.y:(a.y+b.y)/2;
+    if(ball){this.camera={x:cx,y:cy,z:zoom};this.shake=0;}
+    else {if(!this.camera)this.camera={x:cx,y:cy,z:zoom};const k=.15;this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;this.camera.z+=(zoom-this.camera.z)*.09;}
     this.shake*=.88;const shakeX=Math.sin(now*.07)*this.shake,shakeY=Math.cos(now*.08)*this.shake*.6;
-    const anchor=ball?.44:.39;c.save();c.translate(w/2+shakeX,h*anchor+shakeY);c.scale(this.camera.z,this.camera.z);c.translate(-this.camera.x,-this.camera.y);
+    const anchor=ball?.44:.39;c.save();c.translate(Math.round(w*dpr/2)/dpr+shakeX,Math.round(h*anchor*dpr)/dpr+shakeY);c.scale(this.camera.z,this.camera.z);c.translate(-this.camera.x,-this.camera.y);
     const worldLeft=this.camera.x-w/this.camera.z/2,worldRight=this.camera.x+w/this.camera.z/2,worldTop=this.camera.y-h*anchor/this.camera.z,worldBottom=this.camera.y+h*(1-anchor)/this.camera.z;
     // Small fixed snow marks preserve the clean original white slope.
     c.fillStyle='#dce7eb';for(let row=Math.floor(worldTop/100);row<worldBottom/100;row++){const rng=random(s.seed+row*103);for(let j=0;j<10;j++){const x=-1200+rng()*2400,y=row*100+rng()*100;if(x>worldLeft&&x<worldRight)c.fillRect(x,y,2,1);}}
@@ -52,7 +61,8 @@ export class View{
     this.trails=this.trails.filter(t=>s.time-t.time<4).slice(-500);c.strokeStyle='#dce8ee';c.lineWidth=1;
     for(const t of this.trails){c.globalAlpha=clamp(1-(s.time-t.time)/4,0,1)*.6;for(const side of [-3,3]){c.beginPath();c.moveTo(t.x+side,t.y);c.lineTo(t.x+side-Math.sin(t.angle)*5,t.y-Math.cos(t.angle)*5);c.stroke();}}c.globalAlpha=1;
     for(const e of this.effects)if(['blood','debris'].includes(e.type))this.splatter(e,s.time-e.time);
-    const objects=s.entities.filter(e=>e.x>worldLeft-80&&e.x<worldRight+80&&e.y>worldTop-80&&e.y<worldBottom+80).map(e=>({...e,object:true}));
+    const oldEntities=new Map(this.previous?.entities.map(e=>[e.id,e])||[]);
+    const objects=s.entities.map(e=>interpolateBody(e,oldEntities.get(e.id),alpha)).filter(e=>e.x>worldLeft-80&&e.x<worldRight+80&&e.y>worldTop-80&&e.y<worldBottom+80).map(e=>({...e,object:true}));
     objects.push(...players.map(p=>({...p,object:false})));if(ball)objects.push({...ball,kind:'ball',object:true});objects.sort((a,b)=>a.y-b.y);
     this.chain(bodies,s.tension,s.time,!!ball);
     for(const o of objects){

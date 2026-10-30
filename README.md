@@ -13,7 +13,7 @@ Choose **Solo wrecking ball** on the opening screen. Steering now adds momentum 
 - **Ball:** smashes trees, large pines, metal poles, rocks, other skiers, snowboarders, dogs, and the yeti. Direct ball contact does not require a minimum speed.
 - **Chain:** hits rocks and characters, including the yeti. It never destroys trees or poles, regardless of speed. Those obstacles snag it until you steer around or hit them with the ball.
 - Character hits keep the existing bloody explosions and scoring. The blood toggle still works. Jump ramps remain usable.
-- The wider camera shows the surrounding slope as well as the full swing in portrait and landscape. It caps magnification at 1.25 rather than 2.35, with more room ahead to spot hazards.
+- The solo camera stays anchored on the skier, without swing-driven camera movement, changing zoom, or impact shake. Desktop sprites use their original 1:1 pixel size; smaller screens zoom out further to show the full swing and more of the slope. Local movement is interpolated between 60 Hz physics steps rather than displayed at the 20 Hz network update rate.
 - The first Yeti arrives at 2,000 m. Killing it continues the run automatically; there is no victory screen or Continue button to interrupt skiing.
 
 The multiplayer rules below still apply to two skiers and bot practice.
@@ -67,6 +67,7 @@ Open http://127.0.0.1:4177/. `prepare:vendor` bundles pinned PeerJS and rebuilds
 npm run check
 npm test
 npm run test:browser
+npm run test:solo-view
 npm run test:network
 npm run test:webkit
 npm run test:yetis
