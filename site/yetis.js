@@ -1,3 +1,9 @@
+// Grab, lift, swallow, chew, then celebrate using the original sprite frames.
+export const EATING_DURATION=3.6;
+export function eatingFrame(age){
+ const frames=[76,77,78,79,80,81,80,81,80,81,68,69];
+ return frames[Math.min(frames.length-1,Math.max(0,Math.floor(age/.3)))];
+}
 // Original Yeti animation, with distinct silhouettes, movement and durability.
 export const YETIS=[
  {type:'regular',name:'Yeti',scale:1.25,hp:1,speed:218},

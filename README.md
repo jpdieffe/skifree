@@ -6,6 +6,16 @@ Two visible skiers share a downhill run, connected by an elastic, lethal chain. 
 
 This is a **browser adaptation**, with new simulation and procedural slopes, using the original SkiFree artwork extracted from the supplied Windows game. It does not execute or emulate the original EXE. The supplied archive is preserved unchanged at `assets/ski32-original.zip`. SkiFree and its original artwork are by Chris Pirih: https://ski.ihoc.net/.
 
+## Desktop Yeti Onslaught
+
+Choose **Yeti Onslaught** to share one computer: player one skis with **arrows / WASD**, tucks with Down / S, brakes with Up / W, and jumps with **Space**. Player two aims with the **mouse** and clicks or holds the left button to fire. The opening button requires a mouse-capable device; this mode has no touch controls or online room. The options menu pauses the run.
+
+Ski through numbered crates to permanently unlock and immediately equip weapons. All guns have unlimited ammunition. Press **1-6** to choose an unlocked slot: **1 pistol**, **2 machine gun**, **3 shotgun** (short-range spread), **4 sniper rifle** (pierces a line), **5 rocket launcher** (explodes on a monster or at the aimed distance), **6 plasma rifle** (rapid piercing bolts). The weapon bar shows which guns are ready. Each new run resets the inventory.
+
+Ten stages each contain three waves, mixing regular, cyborg, huge, super and tree monsters. Eliminate the entire wave to earn a five-second supply break. After stage ten, the stages repeat with tougher monsters. Wave size grows to 72, with up to 48 monsters active together. Cyborgs charge, super monsters weave, and tree monsters plant obstacles. The camera stays fixed on the skier at the same scale as solo mode.
+
+When a Yeti catches you in any mode, the original grab, swallow and chewing sprites play before the retry screen appears. Capture state is included in multiplayer snapshots so both players see the same sequence.
+
 ## Solo wrecking ball
 
 Choose **Solo wrecking ball** on the opening screen. Steering now adds momentum to the swing. Hold **SWING** on a phone, or **E** on a keyboard, to keep the ball rotating around you. Steer left/right to choose or reverse its direction. Brake to let its momentum carry it ahead; tuck to build speed. The ball stays on the snow while you jump.
@@ -68,6 +78,7 @@ npm run check
 npm test
 npm run test:browser
 npm run test:solo-view
+npm run test:waves
 npm run test:network
 npm run test:webkit
 npm run test:yetis

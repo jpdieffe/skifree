@@ -1,5 +1,6 @@
 import {chainPath,clamp,random} from './physics.js';
-import {yetiProfile} from './yetis.js';
+import {yetiProfile,eatingFrame} from './yetis.js';
+import {WEAPONS} from './waves.js';
 import {BALL_MAX_LENGTH,BALL_RADIUS} from './solo-physics.js';
 export function slopeZoom(w,h,dx,dy){return clamp(Math.min(1.25,w/480,h/380,(w-70)/(dx+100),(h-65)/(dy+180)),.35,1.25);}
 // Fit the entire swing around a fixed skier, independent of the ball's angle.
@@ -40,6 +41,10 @@ export class View{
     for(const e of state.events)if(e.id>this.lastEvent){this.lastEvent=e.id;this.effects.push(e);if(e.type==='blood'||e.type==='debris')this.shake=e.kind==='yeti'?7:2;if(!this.preview)this.onEvent(e);}
     this.effects=this.effects.filter(e=>state.time-e.time<25).slice(-180);
   }
+  screenToWorld(x,y){
+    const c=this.camera,t=this.screen;if(!c||!t)return {x:0,y:300};
+    return {x:c.x+(x-t.x)/c.z,y:c.y+(y-t.y)/c.z};
+  }
   draw(now=performance.now(),frameAlpha){
     const s=this.state;if(!s)return;
     const c=this.ctx,w=this.canvas.clientWidth,h=this.canvas.clientHeight,dpr=Math.min(2,devicePixelRatio||1);
@@ -47,12 +52,12 @@ export class View{
     c.setTransform(dpr,0,0,dpr,0,0);c.imageSmoothingEnabled=false;c.fillStyle='#fff';c.fillRect(0,0,w,h);
     const alpha=clamp(frameAlpha??(now-this.received)/50,0,1),players=s.players.map((p,i)=>interpolateBody(p,this.previous?.players[i],alpha));
     const ball=s.mode==='solo'&&players.length===1&&s.ball?interpolateBody(s.ball,this.previous?.ball,alpha):null,bodies=ball?[players[0],ball]:players;
-    const [a,b]=bodies,dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
-    const zoom=this.preview?1.6:ball?soloZoom(w,h):slopeZoom(w,h,dx,dy),cx=ball?a.x:(a.x+b.x)/2,cy=ball?a.y:(a.y+b.y)/2;
-    if(ball){this.camera={x:cx,y:cy,z:zoom};this.shake=0;}
+    const waves=s.mode==='waves',single=!!ball||waves,[a,b=a]=bodies,dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y);
+    const zoom=this.preview?1.6:single?soloZoom(w,h):slopeZoom(w,h,dx,dy),cx=single?a.x:(a.x+b.x)/2,cy=single?a.y:(a.y+b.y)/2;
+    if(single){this.camera={x:cx,y:cy,z:zoom};this.shake=0;}
     else {if(!this.camera)this.camera={x:cx,y:cy,z:zoom};const k=.15;this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;this.camera.z+=(zoom-this.camera.z)*.09;}
     this.shake*=.88;const shakeX=Math.sin(now*.07)*this.shake,shakeY=Math.cos(now*.08)*this.shake*.6;
-    const anchor=ball?.44:.39;c.save();c.translate(Math.round(w*dpr/2)/dpr+shakeX,Math.round(h*anchor*dpr)/dpr+shakeY);c.scale(this.camera.z,this.camera.z);c.translate(-this.camera.x,-this.camera.y);
+    const anchor=single?.44:.39;this.screen={x:Math.round(w*dpr/2)/dpr+shakeX,y:Math.round(h*anchor*dpr)/dpr+shakeY};c.save();c.translate(this.screen.x,this.screen.y);c.scale(this.camera.z,this.camera.z);c.translate(-this.camera.x,-this.camera.y);
     const worldLeft=this.camera.x-w/this.camera.z/2,worldRight=this.camera.x+w/this.camera.z/2,worldTop=this.camera.y-h*anchor/this.camera.z,worldBottom=this.camera.y+h*(1-anchor)/this.camera.z;
     // Small fixed snow marks preserve the clean original white slope.
     c.fillStyle='#dce7eb';for(let row=Math.floor(worldTop/100);row<worldBottom/100;row++){const rng=random(s.seed+row*103);for(let j=0;j<10;j++){const x=-1200+rng()*2400,y=row*100+rng()*100;if(x>worldLeft&&x<worldRight)c.fillRect(x,y,2,1);}}
@@ -62,9 +67,10 @@ export class View{
     for(const t of this.trails){c.globalAlpha=clamp(1-(s.time-t.time)/4,0,1)*.6;for(const side of [-3,3]){c.beginPath();c.moveTo(t.x+side,t.y);c.lineTo(t.x+side-Math.sin(t.angle)*5,t.y-Math.cos(t.angle)*5);c.stroke();}}c.globalAlpha=1;
     for(const e of this.effects)if(['blood','debris'].includes(e.type))this.splatter(e,s.time-e.time);
     const oldEntities=new Map(this.previous?.entities.map(e=>[e.id,e])||[]);
-    const objects=s.entities.map(e=>interpolateBody(e,oldEntities.get(e.id),alpha)).filter(e=>e.x>worldLeft-80&&e.x<worldRight+80&&e.y>worldTop-80&&e.y<worldBottom+80).map(e=>({...e,object:true}));
-    objects.push(...players.map(p=>({...p,object:false})));if(ball)objects.push({...ball,kind:'ball',object:true});objects.sort((a,b)=>a.y-b.y);
-    this.chain(bodies,s.tension,s.time,!!ball);
+    const capture=s.capture,objects=s.entities.map(e=>interpolateBody(e,oldEntities.get(e.id),alpha)).filter(e=>e.id!==capture?.yeti&&e.x>worldLeft-80&&e.x<worldRight+80&&e.y>worldTop-80&&e.y<worldBottom+80).map(e=>({...e,object:true}));
+    objects.push(...players.filter(p=>p.id!==capture?.player).map(p=>({...p,object:false})));if(ball)objects.push({...ball,kind:'ball',object:true});objects.sort((a,b)=>a.y-b.y);
+    if(!waves&&!capture)this.chain(bodies,s.tension,s.time,!!ball);
+    if(waves)this.supplies(s);
     for(const o of objects){
       if(o.object){let id=o.variant,flip=false;
         if(o.kind==='ball'){this.ball(o);continue;}
@@ -86,11 +92,27 @@ export class View{
         if(!this.preview){c.font='bold 8px system-ui';c.textAlign='center';const label=o.id===this.player?'YOU':o.id===0?'RED':'BLUE';c.fillStyle=o.id===0?'#b9433a':'#007b9d';c.fillText(label,o.x,o.y-38-lift);}
       }
     }
+    if(capture)this.art.draw(c,eatingFrame(s.time-capture.time),capture.x,capture.y,false,1.25);
+    if(waves&&!capture)this.gunfire(s,players[0],alpha);
     for(const e of this.effects)this.particles(e,s.time-e.time);
     if(s.phase==='yeti'||s.phase==='endless')for(const e of s.entities.filter(e=>e.kind==='yeti')){if(e.y<worldTop+80){c.fillStyle='#e14d3d';c.font='bold 12px system-ui';c.textAlign='center';c.fillText('▲ YETI',clamp(e.x,worldLeft+55,worldRight-55),worldTop+85);}}
     c.restore();
     const warning=this.effects.findLast(e=>e.type==='warning'&&s.time-e.time<3);
     if(warning&&!this.preview){c.textAlign='center';c.fillStyle='#d53636';c.font=`900 ${Math.min(24,w/16)}px system-ui`;c.fillText(`LEVEL ${warning.level||1}: ${yetiProfile(warning.level).name.toUpperCase()}`,w/2,h*.2);c.fillStyle='#526b7c';c.font='12px system-ui';c.fillText(ball?'Hold SWING. Steer to change direction.':'Spread out. Put the chain in its path.',w/2,h*.2+21);}
+    if(waves&&s.breather>0&&!capture){c.textAlign='center';c.fillStyle=s.plan.color;c.font='900 23px system-ui';c.fillText(s.plan.name.toUpperCase(),w/2,95);c.font='12px system-ui';c.fillText(`STAGE ${s.plan.stage} / WAVE ${s.plan.wave} IN ${Math.ceil(s.breather)} / COLLECT A WEAPON`,w/2,118);}
+  }
+  supplies(s){
+    const c=this.ctx;
+    for(const p of s.pickups){const gun=WEAPONS[p.slot];c.fillStyle='#ffffffdd';c.strokeStyle=gun.color;c.lineWidth=2;c.fillRect(p.x-19,p.y-26,38,33);c.strokeRect(p.x-19,p.y-26,38,33);c.fillStyle=gun.color;c.font='900 18px system-ui';c.textAlign='center';c.fillText(String(p.slot+1),p.x,p.y-3);c.font='bold 9px system-ui';c.fillText(gun.short,p.x,p.y-34);}
+  }
+  gunfire(s,p,alpha){
+    const c=this.ctx,old=new Map(this.previous?.projectiles?.map(b=>[b.id,b])||[]),gun=WEAPONS[s.weapon],rect=this.canvas.getBoundingClientRect();
+    // Keep the reticle exactly under the mouse, independent of physics interpolation.
+    const aim=this.pointer?this.screenToWorld(this.pointer.x-rect.left,this.pointer.y-rect.top):s.aim;
+    c.save();c.translate(p.x,p.y-18);c.rotate(Math.atan2(aim.y-(p.y-18),aim.x-p.x));c.fillStyle='#243d4a';c.fillRect(3,-3,19,6);c.fillStyle=gun.color;c.fillRect(8,-2,15,4);c.restore();
+    for(const shot of s.projectiles){const b=interpolateBody(shot,old.get(shot.id),alpha),g=WEAPONS[b.weapon],d=Math.hypot(b.vx,b.vy);c.strokeStyle=g.color;c.lineWidth=g.r*2;c.beginPath();c.moveTo(b.x-b.vx/d*(b.weapon===3?35:10),b.y-b.vy/d*(b.weapon===3?35:10));c.lineTo(b.x,b.y);c.stroke();}
+    c.strokeStyle=gun.color;c.lineWidth=1.5;c.beginPath();c.arc(aim.x,aim.y,9,0,Math.PI*2);for(const [x,y] of [[1,0],[-1,0],[0,1],[0,-1]]){c.moveTo(aim.x+x*12,aim.y+y*12);c.lineTo(aim.x+x*17,aim.y+y*17);}c.stroke();
+    for(const e of this.effects){const age=s.time-e.time;if(e.type==='explosion'&&age>=0&&age<.5){c.globalAlpha=1-age/.5;c.strokeStyle='#ef843c';c.fillStyle='#ffc45b55';c.lineWidth=3;c.beginPath();c.arc(e.x,e.y,e.radius*Math.min(1,age*8),0,Math.PI*2);c.fill();c.stroke();c.globalAlpha=1;}}
   }
   yeti(o,time){
     const c=this.ctx,p=yetiProfile(o.level),id=70+Math.floor(time*9)%4,scale=p.scale,h=this.art.map[id].h*scale;
@@ -107,7 +129,8 @@ export class View{
       c.fillStyle='#3e5664';c.fillRect(o.x-14,o.y-h*.72,28,8);c.fillStyle=o.charging?'#ffed74':'#f04444';c.fillRect(o.x-11,o.y-h*.72+2,22,3);
       c.fillStyle='#8ba4b0';c.fillRect(o.x-14,o.y-18,10,12);c.fillRect(o.x+4,o.y-18,10,12);
     }
-    c.font='bold 10px system-ui';c.textAlign='center';c.fillStyle='#344d5c';c.fillText(p.name,o.x,o.y-h-11);
+    if(this.state.mode==='waves'&&o.hp===o.maxHp){c.restore();return;}
+    c.font='bold 10px system-ui';c.textAlign='center';c.fillStyle='#344d5c';if(this.state.mode!=='waves')c.fillText(p.name,o.x,o.y-h-11);
     const bar=Math.max(38,scale*26);c.fillStyle='#dbe5e9';c.fillRect(o.x-bar/2,o.y-h-7,bar,4);c.fillStyle='#d74743';c.fillRect(o.x-bar/2,o.y-h-7,bar*(o.hp/o.maxHp),4);c.restore();
   }
   ball(ball){

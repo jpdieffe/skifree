@@ -58,6 +58,12 @@ export class World{
     const e={id:this.nextEntity++,kind,x,y,px:x,py:y,alive:true,...defaults[kind],...boss,...extra};this.entities.push(e);return e;
   }
   event(type,x,y,extra={}){const e={id:this.nextEvent++,time:this.time,type,x,y,...extra};this.events.push(e);if(this.events.length>100)this.events.shift();return e;}
+  catchPlayer(p,e){
+    if(this.phase==='lost')return;
+    p.caught=true;p.vx=p.vy=p.jump=0;this.phase='lost';
+    this.capture={player:p.id,yeti:e.id,level:e.level,x:p.x,y:p.y,time:this.time};
+    this.event('caught',p.x,p.y,{player:p.id});
+  }
   generate(){
     const center=this.players.reduce((sum,p)=>sum+p.x,0)/this.players.length,ahead=Math.max(...this.players.map(p=>p.y))+820;
     while(this.nextChunk*320<ahead){
@@ -154,7 +160,7 @@ export class World{
       for(const p of this.players){
         if(p.jump>.1||Math.hypot(p.x-e.x,p.y-e.y)>e.r+8)continue;
         if(e.kind==='ramp'){if(!p.jumpCooldown){p.jump=.9;p.jumpCooldown=1.3;this.event('jump',p.x,p.y,{player:p.id});}continue;}
-        if(e.kind==='yeti'){p.caught=true;this.phase='lost';this.event('caught',p.x,p.y,{player:p.id});break;}
+        if(e.kind==='yeti'){this.catchPlayer(p,e);return;}
         if(p.crash<=0){p.crash=1.1;p.vy=-30;p.vx+=(p.x<e.x?-85:85);this.event('crash',p.x,p.y,{player:p.id});}
       }
     }
@@ -166,6 +172,7 @@ export class World{
     const round=v=>Math.round(v*10)/10;
     return {run:this.run,seed:this.seed,time:this.time,phase:this.phase,distance:this.distance,score:this.score,kills:this.kills,wrecks:this.wrecks,combo:this.time-this.lastKill<1.7?this.combo:0,tension:this.tension,yetiKills:this.yetiKills,
       players:this.players.map(p=>({...p,x:round(p.x),y:round(p.y),vx:round(p.vx),vy:round(p.vy)})),
+      capture:this.phase==='lost'&&this.capture?{...this.capture}:null,
       nextYetiDistance:this.yetiKills?Math.ceil(this.nextYeti*.25):2000,
       entities:this.entities.filter(e=>e.alive).map(({id,kind,x,y,vx,vy,variant,r,level,hp,maxHp,charging,hitUntil})=>({id,kind,x:round(x),y:round(y),vx,vy,variant,r,...(kind==='yeti'?{level,hp,maxHp,charging:!!charging,hitUntil:hitUntil||0}:{})})),
       events:this.events.filter(e=>this.time-e.time<3)};

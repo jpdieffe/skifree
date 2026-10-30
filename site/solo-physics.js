@@ -110,7 +110,7 @@ export class SoloWorld extends World{
    if(!solid(e)&&e.kind!=='ramp'&&sweptChainHit(e,oldChain,current)){this.destroy(e);continue;}
    if(p.jump>.1||Math.hypot(p.x-e.x,p.y-e.y)>e.r+8)continue;
    if(e.kind==='ramp'){if(!p.jumpCooldown){p.jump=.9;p.jumpCooldown=1.3;this.event('jump',p.x,p.y,{player:0});}continue;}
-   if(e.kind==='yeti'){p.caught=true;this.phase='lost';this.event('caught',p.x,p.y,{player:0});break;}
+   if(e.kind==='yeti'){this.catchPlayer(p,e);return;}
    if(p.crash<=0){p.crash=1.1;p.vy=-30;p.vx+=(p.x<e.x?-85:85);this.event('crash',p.x,p.y,{player:0});}
   }
   b.roll+=Math.hypot(b.x-before[1].x,b.y-before[1].y)/BALL_RADIUS;

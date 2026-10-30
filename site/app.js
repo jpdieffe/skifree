@@ -4,24 +4,28 @@ import {Artwork,View} from './view.js';
 import {Room} from './room.js';
 import {parseCode} from './protocol.js';
 import {Sound} from './sound.js';
-import {yetiProfile} from './yetis.js';
+import {yetiProfile,EATING_DURATION} from './yetis.js';
+import {WaveWorld,WEAPONS} from './waves.js';
 const $=id=>document.getElementById(id),zero=()=>({x:0,y:0,brake:false,boost:false,jump:false,swing:false}),sound=new Sound();
 let art,view,world,room,mode='',remote=zero(),peerHidden=false,localHidden=document.hidden,connected=false,run=0,last=performance.now(),acc=0,networkTime=0,lastState,overlayAction=null;
+const desktop=()=>matchMedia('(any-pointer:fine)').matches;
+const mouse={x:0,y:0,active:false,fire:false};
 const keys=new Set(),actions=new Set();let pad={x:0,y:0},padPointer=null;
 const seed=()=>crypto.getRandomValues(new Uint32Array(1))[0];
 const settings=()=>({turn:$('turn').value.trim(),username:$('username').value,credential:$('credential').value,host:$('peer-host').value.trim(),path:$('peer-path').value.trim()||'/'});
-const isHost=()=>mode==='host',paused=()=>mode==='host'&&(!connected||peerHidden||localHidden)||['practice','solo'].includes(mode)&&localHidden;
+const isHost=()=>mode==='host',paused=()=>mode==='host'&&(!connected||peerHidden||localHidden)||['practice','solo','waves'].includes(mode)&&(localHidden||mode==='waves'&&!$('options').hidden);
 function input(){return {x:clamp(pad.x+(keys.has('ArrowRight')||keys.has('KeyD')?1:0)-(keys.has('ArrowLeft')||keys.has('KeyA')?1:0),-1,1),y:pad.y,brake:actions.has('brake')||keys.has('ArrowUp')||keys.has('KeyW'),boost:actions.has('boost')||keys.has('ArrowDown')||keys.has('KeyS')||keys.has('ShiftLeft'),jump:actions.has('jump')||keys.has('Space'),swing:mode==='solo'&&(actions.has('swing')||keys.has('KeyE'))};}
-function release(){keys.clear();actions.clear();pad={x:0,y:0};padPointer=null;$('stick').style.transform='';document.querySelectorAll('.actions button').forEach(b=>b.classList.remove('active'));room?.input(zero());}
+function release(){mouse.fire=false;if(world?.gunner)world.gunner.fire=false;keys.clear();actions.clear();pad={x:0,y:0};padPointer=null;$('stick').style.transform='';document.querySelectorAll('.actions button').forEach(b=>b.classList.remove('active'));room?.input(zero());}
 function showOverlay(kicker,title,text,action,label){$('overlay').hidden=false;$('overlay-kicker').textContent=kicker;$('overlay-title').textContent=title;$('overlay-text').textContent=text;overlayAction=action;$('overlay-action').hidden=!action;$('overlay-action').textContent=label||'';$('continue').hidden=true;}
-function startGame(next){mode=next;release();$('lobby').hidden=true;$('game').hidden=false;document.body.classList.add('playing');document.body.classList.toggle('solo',next==='solo');document.querySelector('[data-action="swing"]').hidden=next!=='solo';$('options').hidden=true;$('mode').textContent=next==='solo'?'SOLO WRECKING BALL':next==='practice'?'BOT PARTNER':next==='host'?'RED SKIER':'BLUE SKIER';$('invite').hidden=['practice','solo'].includes(next);$('slope').setAttribute('aria-label',next==='solo'?'SkiFree solo skier and chained wrecking ball':'SkiFree multiplayer slope');$('notice').textContent=next==='solo'?'Hold SWING (E) to spin. Steer to reverse the swing.':'';$('restart').hidden=next==='guest';view=new View($('slope'),art,{player:next==='guest'?1:0,event:e=>{sound.play(e);if(e.type==='blocked')$('notice').textContent=mode==='solo'?'Chain snagged! Swing the ball into it, or steer around.':e.kind==='pole'?'Metal pole! Steer around it.':'Too slow! Tuck to cut trees, or steer around.';}});view.blood=$('blood').checked;sound.start();last=performance.now();acc=0;lastState=null;}
-function newRun(){if(mode==='guest')return;world=mode==='solo'?new SoloWorld(seed(),++run):new World(seed(),++run);remote=zero();update(world.snapshot());}
+function startGame(next){mode=next;release();$('lobby').hidden=true;$('game').hidden=false;document.body.classList.add('playing');document.body.classList.toggle('solo',next==='solo');document.body.classList.toggle('waves',next==='waves');$('arsenal').hidden=next!=='waves';mouse.active=false;document.querySelector('[data-action="swing"]').hidden=next!=='solo';$('options').hidden=true;$('mode').textContent=next==='waves'?'YETI ONSLAUGHT / DESKTOP':next==='solo'?'SOLO WRECKING BALL':next==='practice'?'BOT PARTNER':next==='host'?'RED SKIER':'BLUE SKIER';$('invite').hidden=['practice','solo','waves'].includes(next);$('slope').setAttribute('aria-label',next==='waves'?'Yeti Onslaught: keyboard skier and mouse gunner':next==='solo'?'SkiFree solo skier and chained wrecking ball':'SkiFree multiplayer slope');$('notice').textContent=next==='waves'?'P1: ski with keyboard. P2: aim + hold left click. 1-6 switch guns.':next==='solo'?'Hold SWING (E) to spin. Steer to reverse the swing.':'';$('restart').hidden=next==='guest';view=new View($('slope'),art,{player:next==='guest'?1:0,event:e=>{sound.play(e);if(e.type==='pickup')$('notice').textContent=`${WEAPONS[e.weapon].name} equipped! Press ${e.weapon+1} to select it again.`;if(e.type==='blocked')$('notice').textContent=mode==='solo'?'Chain snagged! Swing the ball into it, or steer around.':e.kind==='pole'?'Metal pole! Steer around it.':'Too slow! Tuck to cut trees, or steer around.';}});view.blood=$('blood').checked;sound.start();last=performance.now();acc=0;lastState=null;}
+function newRun(){if(mode==='guest')return;mouse.fire=false;if(mode==='waves')$('notice').textContent='P1: keyboard skis. P2: mouse aims + shoots. Collect crates; keys 1-6 switch guns.';world=mode==='waves'?new WaveWorld(seed(),++run):mode==='solo'?new SoloWorld(seed(),++run):new World(seed(),++run);remote=zero();update(world.snapshot());}
 function update(state){lastState=state;if(mode==='guest'||view?.run!==state.run)view?.set(state,mode!=='guest');$('distance').textContent=`${state.distance.toLocaleString()} m`;$('score').textContent=`${state.score.toLocaleString()} points · ${state.kills} hits`;$('tension').style.width=`${state.tension*100}%`;
  const boss=state.entities.find(e=>e.kind==='yeti');$('encounter').textContent=boss?`LEVEL ${boss.level} / ${yetiProfile(boss.level).name.toUpperCase()} / ${boss.hp} hits left`:`NEXT: ${yetiProfile(state.yetiKills+1).name.toUpperCase()} / ${state.nextYetiDistance?.toLocaleString()||'2,000'} m`;
- if(!connected&&!['practice','solo'].includes(mode))return;
- if(state.paused){showOverlay('TAKE A BREATHER','Run paused',mode==='solo'?'Return to the game to keep skiing.':'Keep both game tabs visible to keep skiing.');return;}
+ if(mode==='waves')updateArsenal(state);
+ if(!connected&&!['practice','solo','waves'].includes(mode))return;
+ if(state.paused){showOverlay('TAKE A BREATHER','Run paused',['solo','waves'].includes(mode)?'Return to the game to keep skiing.':'Keep both game tabs visible to keep skiing.');return;}
  if(state.phase==='won'||state.phase==='lost'){
-  const finish=state.events.findLast(e=>e.type==='win'||e.type==='caught');if(finish&&state.time-finish.time<1.2){$('overlay').hidden=true;return;}
+  const finish=state.capture||state.events.findLast(e=>e.type==='win'||e.type==='caught');if(finish&&state.time-finish.time<(state.phase==='lost'?EATING_DURATION:1.2)){$('overlay').hidden=true;return;}
   const won=state.phase==='won';showOverlay(won?'CHAIN REACTION':'MOUNTAIN 1 / SKIERS 0',won?'You shredded the yeti!':'The yeti got you.',`${state.score.toLocaleString()} points · ${state.kills} hits · ${state.distance.toLocaleString()} m${mode==='guest'?' · Waiting for your host.':''}`,mode==='guest'?null:newRun,'Another run');$('continue').hidden=!won||mode==='guest';
  }else $('overlay').hidden=true;
 }
@@ -43,6 +47,7 @@ async function connect(host,code){
 function sendState(){if(!world)return;const state={...world.snapshot(),paused:paused()};update(state);if(room?.accepted)room.send({type:'state',state});}
 async function copyInvite(){const url=new URL(location.href);url.search='';url.hash=`room=${room.code}`;try{await navigator.clipboard.writeText(url.href);$('notice').textContent='Invitation copied';$('overlay-text').textContent=`Invitation copied! Room ${room.code}. Keep this tab open.`;}catch{$('notice').textContent=url.href;$('overlay-text').textContent=url.href;}}
 $('host').onclick=()=>{world=null;startGame('host');connect(true);};
+$('waves').onclick=()=>{if(!desktop())return;connected=true;startGame('waves');newRun();};
 $('solo').onclick=()=>{connected=true;startGame('solo');newRun();};
 $('practice').onclick=()=>{connected=true;startGame('practice');newRun();};
 $('join-form').onsubmit=e=>{e.preventDefault();const code=parseCode($('code').value);if(!code){$('lobby-status').textContent='Use the two letters or numbers shown on your friend’s screen.';return;}world=null;startGame('guest');connect(false,code);};
@@ -53,21 +58,40 @@ $('menu-toggle').onclick=()=>{$('options').hidden=!$('options').hidden;$('menu-t
 $('blood').onchange=()=>{if(view)view.blood=$('blood').checked;};$('sound').onchange=()=>{sound.enabled=$('sound').checked;sound.start();};
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else $('notice').textContent='Rotate your phone for a wider view.';}catch{$('notice').textContent='Rotate your phone for a wider view.';}};
 $('touch').checked=matchMedia('(pointer:coarse)').matches;$('touch').onchange=()=>document.body.classList.toggle('touch',$('touch').checked);$('touch').onchange();
-addEventListener('keydown',e=>{if(!mode||e.target instanceof HTMLInputElement)return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','KeyE'].includes(e.code)){e.preventDefault();keys.add(e.code);}});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',release);
+addEventListener('keydown',e=>{if(!mode||e.target instanceof HTMLInputElement)return;if(mode==='waves'&&/^Digit[1-6]$/.test(e.code)){e.preventDefault();world?.select(Number(e.code.slice(-1))-1);return;}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','KeyE'].includes(e.code)){e.preventDefault();keys.add(e.code);}});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',release);
 document.addEventListener('visibilitychange',()=>{localHidden=document.hidden;release();room?.send({type:'presence',hidden:localHidden});if(isHost())sendState();last=performance.now();acc=0;});
 const movePad=e=>{const r=$('pad').getBoundingClientRect(),dx=clamp((e.clientX-r.left-r.width/2)/(r.width*.36),-1,1),dy=clamp((e.clientY-r.top-r.height/2)/(r.height*.36),-1,1);pad={x:Math.abs(dx)<.12?0:dx,y:Math.abs(dy)<.12?0:dy};$('stick').style.transform=`translate(${dx*35}px,${dy*35}px)`;};
 $('pad').onpointerdown=e=>{if(padPointer!==null)return;e.preventDefault();padPointer=e.pointerId;$('pad').setPointerCapture(e.pointerId);movePad(e);sound.start();};$('pad').onpointermove=e=>{if(e.pointerId===padPointer)movePad(e);};
 const endPad=e=>{if(e.pointerId!==padPointer)return;padPointer=null;pad={x:0,y:0};$('stick').style.transform='';};$('pad').onpointerup=endPad;$('pad').onpointercancel=endPad;$('pad').onlostpointercapture=endPad;
 document.querySelectorAll('[data-action]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);actions.add(b.dataset.action);b.classList.add('active');sound.start();};const end=()=>{actions.delete(b.dataset.action);b.classList.remove('active');};b.onpointerup=end;b.onpointercancel=end;b.onlostpointercapture=end;});
+const weaponButtons=WEAPONS.map((gun,i)=>{
+ const b=document.createElement('button');b.type='button';b.style.setProperty('--gun',gun.color);b.innerHTML=`<b>${i+1}</b><span>${gun.short}</span><small>LOCKED</small>`;b.onclick=()=>world?.select(i);$('arsenal').append(b);return b;
+});
+function updateArsenal(s){
+ const alive=s.entities.filter(e=>e.kind==='yeti').length;
+ $('encounter').textContent=`STAGE ${s.plan.stage} / ${s.plan.name.toUpperCase()} / WAVE ${s.plan.wave} OF 3 / ${s.remaining+alive} MONSTERS LEFT`;
+ weaponButtons.forEach((b,i)=>{b.disabled=!s.unlocked[i];b.classList.toggle('selected',s.weapon===i);b.setAttribute('aria-pressed',String(s.weapon===i));b.querySelector('small').textContent=s.weapon===i?'EQUIPPED':s.unlocked[i]?'READY':'FIND PICKUP';});
+}
+function updateGunner(){
+ const r=$('slope').getBoundingClientRect(),v=view.camera,z=v?.z||1,p=world.players[0];
+ view.pointer=mouse.active?{x:mouse.x,y:mouse.y}:null;
+ world.viewport={halfWidth:r.width/(2*z),above:r.height*.44/z,below:r.height*.56/z};
+ const aim=mouse.active?view.screenToWorld(mouse.x-r.left,mouse.y-r.top):{x:p.x,y:p.y+250};
+ world.gunner={...aim,fire:mouse.fire&&!paused()&&world.phase!=='lost'};
+}
+const aimMouse=e=>{if(e.pointerType==='touch')return;mouse.x=e.clientX;mouse.y=e.clientY;mouse.active=true;};
+$('slope').addEventListener('pointermove',aimMouse);
+$('slope').addEventListener('pointerdown',e=>{if(mode!=='waves'||e.button!==0||e.pointerType==='touch')return;e.preventDefault();aimMouse(e);mouse.fire=true;$('slope').setPointerCapture(e.pointerId);sound.start();});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])$('slope').addEventListener(type,()=>{mouse.fire=false;});
 const shared=parseCode(new URLSearchParams(location.hash.slice(1)).get('room'));if(shared)$('code').value=shared;
 let preview,previewWorld;
 function demo(){const w=new World(42);for(const p of w.players)p.y=450;w.generate();return w;}
 function frame(now){const elapsed=Math.min(.1,(now-last)/1000);last=now;
  if(!mode&&preview){previewWorld.inputs[0]={...zero(),x:Math.sin(now/1500)*.65};previewWorld.bot();previewWorld.step(STEP);if(previewWorld.players[0].y>1100)previewWorld=demo();preview.set(previewWorld.snapshot(),true);preview.draw(now);}
- if(mode&&world){if(!paused()){acc+=elapsed;while(acc>=STEP){world.inputs[0]=input();if(mode==='practice')world.bot();else world.inputs[1]=remote;world.step(STEP);view.set(world.snapshot());acc-=STEP;}}else acc=0;networkTime+=elapsed;if(networkTime>=.05){networkTime=0;sendState();}}
+ if(mode&&world){if(!paused()){acc+=elapsed;while(acc>=STEP){world.inputs[0]=input();if(mode==='waves')updateGunner();if(mode==='practice')world.bot();else world.inputs[1]=remote;world.step(STEP);view.set(world.snapshot());acc-=STEP;}}else acc=0;networkTime+=elapsed;if(networkTime>=.05){networkTime=0;sendState();}}
  else if(mode==='guest'){networkTime+=elapsed;if(networkTime>=1/30){networkTime=0;room?.input(input());}}
  if(mode)view?.draw(now,world?(paused()?1:acc/STEP):undefined);requestAnimationFrame(frame);
 }
-for(const id of ['host','join','practice','solo'])$(id).disabled=true;
-try{art=await new Artwork().load();previewWorld=demo();preview=new View($('preview'),art,{preview:true});$('lobby-status').textContent='No download. Two-character rooms. One shared disaster.';for(const id of ['host','join','practice','solo'])$(id).disabled=false;requestAnimationFrame(frame);}catch(e){$('lobby-status').textContent=`Could not load the artwork. Reload to retry. ${e.message}`;}
+for(const id of ['host','join','practice','solo','waves'])$(id).disabled=true;
+try{art=await new Artwork().load();previewWorld=demo();preview=new View($('preview'),art,{preview:true});$('lobby-status').textContent='No download. Two-character rooms. One shared disaster.';for(const id of ['host','join','practice','solo','waves'])$(id).disabled=false;$('waves').disabled=!desktop();if(!desktop())$('waves-help').textContent='Desktop mode requires a keyboard and mouse.';requestAnimationFrame(frame);}catch(e){$('lobby-status').textContent=`Could not load the artwork. Reload to retry. ${e.message}`;}
 if(new URLSearchParams(location.search).has('debug'))window.ski={get world(){return world;},get state(){return lastState;},get room(){return room;},get view(){return view;},input,paused};

@@ -6,3 +6,10 @@
 .solo-button{display:block;width:100%;margin-top:20px;background:#163b4e;color:#fff;text-align:left;font-size:18px;padding:16px 20px}.solo-button span{display:block;font-size:11px;font-weight:500;color:#b9d4df;margin-top:5px}.solo-rules{padding:16px 20px;border:1px solid #c7dce3;border-radius:12px;background:#e4eff3;font-size:13px;line-height:1.7;color:#456877}.solo-rules b{display:block;font-size:10px;letter-spacing:1.6px;color:#234d60;margin-bottom:5px}
 
 #encounter{position:absolute;top:46px;left:18px;font-size:10px;font-weight:800;color:#517181;pointer-events:none}.solo-hint{display:none}body.solo .solo-hint{display:inline}body.solo .actions .jump{grid-row:auto;grid-column:auto;font-size:11px}.actions .swing{background:#e56c30;color:#fff;border-color:#dc5c24;box-shadow:0 3px 0 #9a421e}
+
+.waves-button{background:#485468;margin-top:12px}.waves-hint{display:none}
+body.waves #game{grid-template-rows:64px minmax(0,1fr) 28px}body.waves #controls,body.waves .chain-meter{display:none}body.waves .keyboard-hint{display:block}body.waves .waves-hint{display:inline}body.waves #slope{cursor:crosshair}body.waves #encounter{top:18px;max-width:60%;line-height:1.5}body.waves #notice{top:42px;max-width:70%}
+#arsenal{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:calc(100% - 24px);padding:7px;background:#e9f1f5ed;border:1px solid #c8d8df;border-radius:12px}
+#arsenal button{min-width:90px;min-height:64px;padding:7px 10px;border-radius:7px;border-top:3px solid var(--gun);background:#fff;font-size:9px;display:grid;grid-template-columns:18px 1fr;gap:4px;text-align:left;align-items:center}
+#arsenal b{grid-row:span 2;font-size:19px;color:var(--gun)}#arsenal small{font-size:8px;color:#67808d}#arsenal .selected{outline:2px solid var(--gun);background:#f8fcff}#arsenal button:disabled{opacity:.45;cursor:default}
+@media(max-width:800px){#arsenal{gap:4px}#arsenal button{min-width:0;width:90px;padding:6px;font-size:8px}body.waves .keyboard-hint{font-size:9px}}
